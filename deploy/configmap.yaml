@@ -1,0 +1,11 @@
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: milvus-k8s-server
+  namespace: milvus
+data:
+  cfg.yml: |-
+    serverPort: 8000
+    etcd: 127.0.0.1:2379
+    rootPath: by-prod
+    metaSubPath: meta

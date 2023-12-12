@@ -8,7 +8,7 @@ import (
 )
 
 func main() {
-	config, err := configs.NewConfig(".bw_config")
+	config, err := configs.NewConfig("/milvus/configs/cfg.yml")
 	if err != nil {
 		// run by default, just printing warning.
 		fmt.Println("[WARN] load config file failed, running in default setting", err.Error())

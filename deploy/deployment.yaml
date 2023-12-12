@@ -1,0 +1,30 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: milvus-k8s-server
+  namespace: milvus
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      name: milvus-k8s-server
+  template:
+    metadata:
+      labels:
+        name: milvus-k8s-server
+    spec:
+      serviceAccountName: milvus-k8s-server
+      containers:
+        - name: milvus-k8s-server
+          # Replace this with the built image name
+          image: xxx
+          imagePullPolicy: Always
+          volumeMounts:
+            - mountPath: /milvus/configs/cfg.yml
+              name: milvus-k8s-server
+              subPath: cfg.yml
+      volumes:
+        - configMap:
+            defaultMode: 420
+            name: milvus-k8s-server
+          name: milvus-k8s-server
