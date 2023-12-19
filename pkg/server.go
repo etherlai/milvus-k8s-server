@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"github.com/golang/glog"
 	"github.com/gorilla/mux"
-	"log"
 	"milvus-k8s-server/pkg/configs"
+	"milvus-k8s-server/pkg/log"
 	"milvus-k8s-server/pkg/querynode"
 	"net/http"
 	"strconv"
@@ -26,7 +26,7 @@ type Server struct {
 func NewServer(cfg *configs.Config) (*Server, error) {
 	qnMgr, err := querynode.NewQueryNodeManager(cfg)
 	if err != nil {
-		log.Fatal("querynode manager init failed", err.Error())
+		log.Logger.Fatal("querynode manager init failed", err.Error())
 	}
 	s := &Server{
 		basePort: cfg.ServerPort,
@@ -42,7 +42,7 @@ func NewServer(cfg *configs.Config) (*Server, error) {
 
 func (s *Server) Start() error {
 	// At this point we are ready - start Http Listener so that it can respond to readiness events.
-	log.Printf("starting Http service at :%s\n", s.basePort)
+	log.Logger.Info("starting Http service at: ", s.basePort)
 	if err := http.ListenAndServe(":"+strconv.Itoa(s.basePort), s.mux); err != nil {
 		return err
 	}
@@ -52,8 +52,8 @@ func (s *Server) Start() error {
 
 func (s *Server) initService() error {
 	s.mux = mux.NewRouter()
-	s.mux.HandleFunc("/health", s.httpServerReadyHandler)
-	s.mux.HandleFunc("/querynodes", s.getAllQueryNodes)
+	s.mux.HandleFunc("/health", s.httpServerReadyHandler).Methods("Get")
+	s.mux.HandleFunc("/querynodes", s.getAllQueryNodes).Methods("Get")
 
 	return nil
 }
@@ -66,7 +66,7 @@ func (s *Server) httpServerReadyHandler(w http.ResponseWriter, _ *http.Request) 
 func (s *Server) getAllQueryNodes(w http.ResponseWriter, _ *http.Request) {
 	qns, err := s.qnMgr.GetAllQueryNodes()
 	if err != nil {
-		log.Println(err)
+		log.Logger.Error("get all querynodes failed", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
