@@ -5,12 +5,13 @@ import (
 	"fmt"
 	"gopkg.in/yaml.v3"
 	"io"
+	"milvus-k8s-server/pkg/log"
 	"os"
 	"path"
 )
 
 const (
-	configFileName = `config.yaml`
+	configFileName = "cfg.yml"
 )
 
 var (
@@ -35,7 +36,6 @@ func load(configPath string) (*Config, error) {
 	if err != nil {
 		return nil, err
 	}
-
 	f, err := os.Open(getConfigPath(configPath))
 	if err != nil {
 		return nil, err
@@ -65,8 +65,8 @@ func checkConfigPath(configPath string) error {
 		}
 		return err
 	}
-	if info.IsDir() {
-		fmt.Printf("%s is not a directory\n", configPath)
+	if !info.IsDir() {
+		log.Logger.Errorf("%s is not a directory\n", configPath)
 		return fmt.Errorf("%w(%s)", errConfigPathIsDir, configPath)
 	}
 

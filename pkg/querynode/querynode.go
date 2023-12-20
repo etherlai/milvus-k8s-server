@@ -9,7 +9,13 @@ import (
 	"milvus-k8s-server/pkg/common/k8s"
 	"milvus-k8s-server/pkg/common/kv"
 	"milvus-k8s-server/pkg/configs"
+	"milvus-k8s-server/pkg/log"
 	"milvus-k8s-server/pkg/session"
+	"strings"
+)
+
+const (
+	colocationKey = "dce.netease.com/workload-type"
 )
 
 type QueryNodeManager struct {
@@ -45,24 +51,48 @@ func (q *QueryNodeManager) GetAllQueryNodes() ([]*QueryNodeK8sInfo, error) {
 	if err != nil {
 		return nil, err
 	}
+	nodes, err := q.K8sClient.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{})
+	if err != nil {
+		return nil, err
+	}
+	nodesMap := make(map[string]map[string]string)
+	for _, node := range nodes.Items {
+		nodesMap[node.Name] = node.Labels
+	}
 	sessions, err := session.ListSessionsByPrefix(q.MetaClient, "querynode")
 	if err != nil {
 		return nil, err
 	}
 	sessionIPs := make(map[string]struct{})
 	for _, s := range sessions {
-		sessionIPs[s.Address] = struct{}{}
+		addr := strings.Split(s.Address, ":")[0]
+		sessionIPs[addr] = struct{}{}
 	}
 	queryNodes := make([]*QueryNodeK8sInfo, 0)
 	for _, pod := range pods.Items {
 		if _, ok := sessionIPs[pod.Status.PodIP]; ok {
+			selectors := make(map[string]string)
+			if nodeLabels, ok := nodesMap[pod.Spec.NodeName]; ok {
+				selectors = nodeLabels
+			} else {
+				log.Logger.Warnf("match node failed, pod name: %s, node name: %s", pod.Name, pod.Spec.NodeName)
+				continue
+			}
+			if val, ok := pod.Labels[colocationKey]; ok {
+				if _, exist := selectors[colocationKey]; !exist {
+					selectors[colocationKey] = val
+				}
+			}
 			qn := &QueryNodeK8sInfo{
 				PodName:   pod.Name,
 				Addr:      fmt.Sprintf("%s:21123", pod.Status.PodIP),
-				Selectors: pod.Labels,
+				Selectors: selectors,
 				K8sNode:   pod.Spec.NodeName,
 			}
+			log.Logger.Infof("get querynode, name: %s, addr: %s, node name: %s", qn.PodName, qn.Addr, qn.K8sNode)
 			queryNodes = append(queryNodes, qn)
+		} else {
+			log.Logger.Warnf("match pod failed, pod name: %s, pod ip: %s", pod.Name, pod.Status.PodIP)
 		}
 	}
 	return queryNodes, nil
